@@ -1,0 +1,612 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model School {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  address   String?
+  phone     String?
+  email     String?
+  logo      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branches Branch[]
+  users    User[]
+  FeeType  FeeType[]
+  Grade    Grade[]
+
+  @@map("schools")
+  PricingSchema PricingSchema[]
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  address   String?
+  phone     String?
+  email     String?
+  schoolId  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school        School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  users         User[]
+  classes       Class[]
+  students      Student[]
+  enrollments   Enrollment[]
+  invoices      Invoice[]
+  payments      Payment[]
+  registrations Registration[]
+
+  @@map("branches")
+  PricingSchema PricingSchema[]
+  Teacher Teacher[]
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  BRANCH_ADMIN
+  REGISTRAR
+  CASHIER
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum StudentType {
+  REGULAR_STUDENT
+  NEW_STUDENT
+}
+
+enum RegistrationStatus {
+  PENDING_PAYMENT
+  PAYMENT_COMPLETED
+  ENROLLED
+  CANCELLED
+}
+
+enum PaymentOption {
+  REGISTRATION_MONTHLY
+  REGISTRATION_QUARTERLY
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  firstName String
+  lastName  String
+  phone     String?   @unique
+  avatar    String?
+  role      UserRole
+  schoolId  String
+  branchId  String?
+  isActive  Boolean   @default(true)
+  lastLogin DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  school School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  // Relations based on role
+  teacherProfile Teacher?
+  studentProfile Student?
+  parentProfile  Parent?
+
+  createdInvoices Invoice[] @relation("InvoiceCreatedBy")
+  Payment         Payment[] @relation("PaymentProcessedBy")
+
+  @@map("users")
+}
+
+model Teacher {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  employeeId    String   @unique
+  branchId      String   @default("cmcvs90rx0004udzmd0asbdx8")
+  qualification String?
+  experience    Int?
+  salary        Decimal? @db.Decimal(10, 2)
+  joinDate      DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  dateOfBirth   DateTime?
+  gender        Gender?
+  address        String?
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch   Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  classes  ClassTeacher[]
+  subjects SubjectTeacher[]
+
+  @@map("teachers")
+  Lesson Lesson[]
+}
+
+model Student {
+  id               String      @id @default(cuid())
+  userId           String      @unique
+  studentId        String      @unique
+  branchId         String
+  studentType      StudentType @default(NEW_STUDENT)
+  gradeId         String?
+  // classId         String?
+  admissionDate    DateTime?
+  dateOfBirth      DateTime?
+  placeOfBirth     String?
+  gender           Gender?
+  nationality      String?
+  bloodGroup       String?
+  address          String?
+  emergencyContact String?
+  photo            String?
+  isActive         Boolean     @default(true)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch       Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  registration Registration?
+  enrollments  Enrollment[]
+  invoices     Invoice[]
+  payments     Payment[]
+  parents      StudentParent[]
+  grade     Grade?      @relation(fields: [gradeId], references: [id])
+
+  @@map("students")
+}
+
+model Registration {
+  id                 String             @id @default(cuid())
+  registrationNumber String             @unique
+  studentId          String             @unique
+  branchId           String
+  gradeId            String?
+  status             RegistrationStatus @default(PENDING_PAYMENT)
+  paymentOption      PaymentOption?
+
+  additionalFee       Decimal?          @db.Decimal(10, 2)
+  serviceFee          Decimal?          @db.Decimal(10, 2)
+  totalAmount         Decimal           @db.Decimal(10, 2)
+  paidAmount          Decimal?          @db.Decimal(10, 2)
+  discountPercentage  Float?           
+  discountAmount      Decimal?          @db.Decimal(10, 2) 
+  paymentDuration     PaymentDuration?  
+  paymentDueDate      DateTime
+
+  registrationFee    Decimal            @db.Decimal(10, 2)
+  enrolledById       String?
+
+  completedAt        DateTime?
+  enrolledAt         DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  // Relations
+  student  Student   @relation(fields: [studentId], references: [id])
+  branch   Branch    @relation(fields: [branchId], references: [id])
+  grade    Grade?    @relation(fields: [gradeId], references: [id])
+  invoices Invoice[]
+  payments Payment[]
+
+  @@map("registrations")
+}
+
+enum PaymentDuration {
+  ONE_MONTH
+  TWO_MONTHS
+  QUARTER
+  THREE_MONTHS
+  FOUR_MONTHS
+  FIVE_MONTHS
+  TEN_MONTHS
+}
+
+model PricingSchema {
+  id              String   @id @default(cuid())
+  schoolId        String
+  branchId        String
+  gradeId         String
+  registrationFee Decimal  @db.Decimal(10, 2)
+  monthlyFee      Decimal  @db.Decimal(10, 2)
+  serviceFee      Decimal  @db.Decimal(10, 2)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id])
+  branch Branch @relation(fields: [branchId], references: [id])
+  grade  Grade  @relation(fields: [gradeId], references: [id])
+
+  @@unique([branchId, gradeId])
+  @@map("pricing_schemas")
+}
+
+model Parent {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  occupation String?
+  workplace  String?
+  address    String?
+  photo      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  children StudentParent[]
+
+  @@map("parents")
+}
+
+model StudentParent {
+  id           String @id @default(cuid())
+  studentId    String
+  parentId     String
+  relationship String // father, mother, guardian
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, parentId])
+  @@map("student_parents")
+}
+
+model AcademicYear {
+  id        String   @id @default(cuid())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  classes     Class[]
+  enrollments Enrollment[]
+
+  @@map("academic_years")
+}
+
+model Grade {
+  id          String   @id @default(cuid())
+  name        String
+  level       Int
+  schoolId    String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  branchId   String    @default("cmcvs90rx0004udzmd0asbdx8")
+
+  school        School         @relation(fields: [schoolId], references: [id])
+  classes       Class[]
+  students      Student[]
+  registrations Registration[]
+
+  @@unique([schoolId, level])
+  @@map("grades")
+  PricingSchema PricingSchema[]
+}
+
+model Class {
+  id             String   @id @default(cuid())
+  name           String
+  section        String?
+  capacity       Int      @default(30)
+  branchId       String
+  gradeId        String
+  academicYearId String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  branch       Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  grade        Grade        @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  teachers    ClassTeacher[]
+  enrollments Enrollment[]
+
+  @@unique([name, section, branchId, academicYearId])
+  @@map("classes")
+  Lesson Lesson[]
+}
+
+model ClassTeacher {
+  id             String  @id @default(cuid())
+  classId        String
+  teacherId      String
+  isClassTeacher Boolean @default(false)
+
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, teacherId])
+  @@map("class_teachers")
+}
+
+model Subject {
+  id        String   @id @default(cuid())
+  name      String
+  description  String?
+  code      String   @unique
+  credits   Int?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teachers SubjectTeacher[]
+
+  @@map("subjects")
+  Lesson Lesson[]
+}
+
+model SubjectTeacher {
+  id        String @id @default(cuid())
+  subjectId String
+  teacherId String
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([subjectId, teacherId])
+  @@map("subject_teachers")
+}
+
+model Enrollment {
+  id             String           @id @default(cuid())
+  studentId      String
+  classId        String
+  branchId       String
+  academicYearId String
+  enrollmentDate DateTime         @default(now())
+  status         EnrollmentStatus @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class        Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId, academicYearId])
+  @@map("enrollments")
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  INACTIVE
+  TRANSFERRED
+  GRADUATED
+  DROPPED
+}
+
+model FeeType {
+  id          String   @id @default(cuid())
+  name        String
+  schoolId    String
+  description String?
+  amount      Decimal? @db.Decimal(10, 2)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  school       School        @relation(fields: [schoolId], references: [id])
+  invoiceItems InvoiceItem[]
+
+  @@unique([schoolId, name])
+  @@map("fee_types")
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  invoiceNumber  String        @unique
+  studentId      String
+  branchId       String
+  registrationId String?
+  totalAmount    Decimal       @db.Decimal(10, 2)
+  discountAmount Decimal?      @db.Decimal(10, 2) // New field for discount amount
+  finalAmount    Decimal?      @db.Decimal(10, 2) // New field for final amount after discount
+  paidAmount     Decimal       @default(0) @db.Decimal(10, 2)
+  dueDate        DateTime
+  status         InvoiceStatus @default(PENDING)
+  createdById    String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  branch    Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
+
+  items        InvoiceItem[]
+  payments     Payment[]
+  registrations Registration[]
+
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  feeTypeId   String
+  description String?
+  amount      Decimal @db.Decimal(8, 2)
+  quantity    Int     @default(1)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  feeType FeeType @relation(fields: [feeTypeId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_items")
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  paymentNumber  String        @unique
+  invoiceId      String
+  studentId      String
+  registrationId String?
+  branchId       String
+  amount         Decimal       @db.Decimal(10, 2)
+  paymentMethod  PaymentMethod
+  paymentDate    DateTime      @default(now())
+  status         PaymentStatus @default(PENDING)
+  transactionId  String?
+  telebirrRef    String?
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  processedById  String?
+
+  // bankName       String?       // 🆕 Add this
+  // bankBranch     String?       // 🆕 Add this
+
+  processedBy User? @relation("PaymentProcessedBy", fields: [processedById], references: [id])
+
+  invoice      Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  student      Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  branch       Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  Registration Registration[]
+
+  @@map("payments")
+}
+
+model Lesson {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  classId     String
+  subjectId   String
+  teacherId   String
+  startTime   DateTime
+  endTime     DateTime
+  duration    Int         // Duration in minutes
+  status      LessonStatus @default(SCHEDULED)
+  location    String?
+  notes       String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @default(now())
+
+  // Relations
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  modules Module[]
+
+  @@map("lessons")
+}
+
+model Module {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  lessonId    String
+  content     String?      // Rich text content
+  orderIndex  Int          // Order within the lesson
+  duration    Int?         // Duration in minutes
+  status      ModuleStatus @default(DRAFT)
+  resources   String[]     // Array of resource URLs/paths
+  objectives  String[]     // Learning objectives
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now())
+
+  // Relations
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, orderIndex])
+  @@map("modules")
+}
+
+enum LessonStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  POSTPONED
+}
+
+enum ModuleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  TELEBIRR
+  ONLINE
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+model SMSTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  content   String
+  variables String[] // JSON array of variable names
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  smsLogs SMSLog[]
+
+  @@map("sms_templates")
+}
+
+model SMSLog {
+  id           String    @id @default(cuid())
+  templateId   String?
+  recipient    String
+  message      String
+  status       SMSStatus @default(PENDING)
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  template SMSTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@map("sms_logs")
+}
+
+enum SMSStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
