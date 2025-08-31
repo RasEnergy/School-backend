@@ -19,11 +19,11 @@ export async function verifyPassword(
 }
 
 export function generateToken(user: AuthUser): string {
-	return jwt.sign(user, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+	return (jwt as any).sign(user, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
 export function generateRefreshToken(userId: string): string {
-	return jwt.sign({ userId }, JWT_SECRET, {
+	return (jwt as any).sign({ userId }, JWT_SECRET, {
 		expiresIn: JWT_REFRESH_EXPIRES_IN,
 	});
 }

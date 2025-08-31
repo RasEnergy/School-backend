@@ -23,6 +23,8 @@ import subjectRoutes from "./routes/subjects";
 import teacherRoutes from "./routes/teachers";
 import lessonRoutes from "./routes/lessons";
 import moduleRoutes from "./routes/modules";
+import pricingRoutes from "./routes/pricing"
+import parentRoutes from "./routes/parents"
 
 // Import middleware
 import { errorHandler } from "./middleware/errorHandler";
@@ -47,13 +49,22 @@ const limiter = rateLimit({
 app.use("/api/", limiter);
 
 // CORS configuration
+// app.use(
+// 	cors({
+// 		origin: "*",
+// 		credentials: true,
+// 		methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+// 		allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+// 	})
+// );
+
 app.use(
-	cors({
-		origin: process.env.FRONTEND_URL || "http://localhost:3000",
-		credentials: true,
-		methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-		allowedHeaders: ["Content-Type", "Authorization", "Accept"],
-	})
+  cors({
+    origin: "http://5.75.243.13:36443", // frontend URL
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+  })
 );
 
 // app.options("*", cors());
@@ -90,7 +101,8 @@ app.use("/api/subjects", subjectRoutes);
 app.use("/api/teachers", teacherRoutes);
 app.use("/api/lessons", lessonRoutes);
 app.use("/api/modules", moduleRoutes);
-
+app.use("/api/pricing", pricingRoutes)
+app.use("/api/parents", parentRoutes)
 // Error handling middleware
 app.use(notFound);
 app.use(errorHandler);

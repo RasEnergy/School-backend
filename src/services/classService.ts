@@ -178,6 +178,19 @@ export const getGradesByBranch = async (
 	});
 };
 
+export const getBranchs = async (
+	branchId: string
+) => {
+	return prisma.branch.findMany({
+		where: {
+			id:branchId,
+		},
+		orderBy: {
+			name: "asc",
+		},
+	});
+};
+
 export const getClassByCode = async (code: string, branchId: string) => {
 	return prisma.class.findFirst({
 		where: {

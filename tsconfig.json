@@ -17,6 +17,7 @@
 			"@/*": ["./*"],
 			"@/config/*": ["./config/*"],
 			"@/middleware/*": ["./middleware/*"],
+			"@/controllers/*": ["./controllers/*"],
 			"@/routes/*": ["./routes/*"],
 			"@/utils/*": ["./utils/*"],
 			"@/types/*": ["./types/*"]

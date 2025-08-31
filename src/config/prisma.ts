@@ -15,7 +15,7 @@ export const prisma =
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 // Optional: log slow queries
-prisma.$on("query", (e: any) => {
+(prisma as any).$on("query", (e: any) => {
 	if (e.duration > 200) {
 		console.warn(`[prisma] slow query ${e.duration}ms:`, e.query);
 	}

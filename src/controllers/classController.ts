@@ -169,6 +169,26 @@ export const getGradesByBranch = async (
 	}
 };
 
+export const getBranchs = async (
+	req: Request,
+	res: Response,
+	next: NextFunction
+) => {
+	try {
+		console.log("GRadess");
+		const { branchId } = req.params;
+		const branches = await classService.getBranchs(branchId);
+
+		res.status(200).json({
+			success: true,
+			data: { branches },
+		});
+	} catch (error) {
+		console.error("Get classes by branch error:", error);
+		next(error);
+	}
+};
+
 export const getAcademicYear = async (
 	req: Request,
 	res: Response,

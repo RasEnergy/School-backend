@@ -9,6 +9,7 @@ import {
 	getClassesByBranch,
 	getAcademicYear,
 	getClassById,
+	getBranchs,
 } from "@/controllers/classController";
 import { getGradesByBranch } from "@/controllers/classController";
 
@@ -19,6 +20,7 @@ router.use(authenticate);
 router.post("/", requireRegistrar, createClass);
 router.get("/branch/:branchId", getClassesByBranch);
 router.get("/grades/:branchId", getGradesByBranch);
+router.get("/get-branches/:branchId", getBranchs);
 router.get("/academic-years", getAcademicYear);
 router.get("/:id", getClassById);
 router.put("/:id", requireRegistrar, updateClass);
