@@ -28,6 +28,7 @@ export const getClass = async (
 	try {
 		const { id } = req.params;
 		const classData = await classService.getClassById(id);
+		
 
 		if (!classData) {
 			return res.status(404).json({
@@ -49,10 +50,12 @@ export const getClass = async (
 export const getClassById = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
+		console.log({id___: id});
 
 		const result = await classService.getClassById(id);
+		console.log({result__: result});
 
-		if (!(result as any).success) {
+		if (!(result)) {
 			return res.status(404).json(result);
 		}
 

@@ -60,12 +60,14 @@ app.use("/api/", limiter);
 
 app.use(
   cors({
-    origin: "http://5.75.243.13:36443", // frontend URL
+    // origin: "http://5.75.243.13:36443", // frontend URL
+    origin: "http://localhost:3000", // frontend URL
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "Accept"],
   })
 );
+
 
 // app.options("*", cors());
 
