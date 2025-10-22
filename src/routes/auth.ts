@@ -6,7 +6,7 @@ import {
 	refreshToken,
 	getProfile,
 	changePassword,
-} from "@/controllers/authController";
+} from "./../controllers/authController";
 import { authenticate } from "@/middleware/auth";
 import { validate } from "@/middleware/validate";
 

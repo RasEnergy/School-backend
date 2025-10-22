@@ -1,27 +1,45 @@
-import { Router } from "express";
-import { authenticate } from "@/middleware/auth";
-import { requireCashier } from "@/middleware/authorize";
+import { Router } from "express"
+import { invoiceController } from "../controllers/invoiceController"
+import { authenticate } from "../middleware/auth"
+// import { requireRole } from "../middleware/authorize"
 
-const router = Router();
+const router = Router()
 
-router.use(authenticate);
+// Apply authentication to all routes
+router.use(authenticate)
 
-// Placeholder controllers
-const createInvoice = (req: any, res: any) =>
-	res.json({ message: "Create invoice endpoint" });
-const getInvoice = (req: any, res: any) =>
-	res.json({ message: "Get invoice endpoint" });
-const updateInvoice = (req: any, res: any) =>
-	res.json({ message: "Update invoice endpoint" });
-const deleteInvoice = (req: any, res: any) =>
-	res.json({ message: "Delete invoice endpoint" });
-const getInvoicesByStudent = (req: any, res: any) =>
-	res.json({ message: "Get invoices by student endpoint" });
 
-router.post("/", requireCashier, createInvoice);
-router.get("/student/:studentId", getInvoicesByStudent);
-router.get("/:id", getInvoice);
-router.put("/:id", requireCashier, updateInvoice);
-router.delete("/:id", requireCashier, deleteInvoice);
+// GET /invoices - Get invoices with filtering
+router.get("/", 
+	// requireRole(["SUPER_ADMIN", "BRANCH_ADMIN", "REGISTRAR", "CASHIER"]), 
+	invoiceController.getInvoices)
 
-export default router;
+// GET /invoices/export - Export invoices
+router.get(
+  "/export",
+//   requireRole(["SUPER_ADMIN", "BRANCH_ADMIN", "REGISTRAR", "CASHIER"]),
+  invoiceController.exportInvoices,
+)
+
+// GET /invoices/:id - Get invoice by ID
+router.get(
+  "/:id",
+//   requireRole(["SUPER_ADMIN", "BRANCH_ADMIN", "REGISTRAR", "CASHIER"]),
+  invoiceController.getInvoiceById,
+)
+
+// POST /invoices/:id/confirm-payment - Confirm payment
+router.post(
+  "/:id/confirm-payment",
+//   requireRole(["SUPER_ADMIN", "BRANCH_ADMIN", "REGISTRAR", "CASHIER"]),
+  invoiceController.confirmPayment,
+)
+
+// POST /invoices/:id/resend-link - Resend payment link
+router.post(
+  "/:id/resend-link",
+//   requireRole(["SUPER_ADMIN", "BRANCH_ADMIN", "REGISTRAR", "CASHIER"]),
+  invoiceController.resendPaymentLink,
+)
+
+export default router

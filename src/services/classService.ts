@@ -157,7 +157,7 @@ export const getGradesByBranch = async (
 ) => {
 	return prisma.grade.findMany({
 		where: {
-			branchId,
+			// branchId,
 			// ...(gradeId && { gradeId }),
 			// ...(academicYearId && { academicYearId }),
 			isActive: true,

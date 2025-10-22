@@ -25,7 +25,8 @@ import lessonRoutes from "./routes/lessons";
 import moduleRoutes from "./routes/modules";
 import pricingRoutes from "./routes/pricing"
 import parentRoutes from "./routes/parents"
-
+import attendanceRoutes from "./routes/attendance"
+import receiptRoute from "./routes/receipt"
 // Import middleware
 import { errorHandler } from "./middleware/errorHandler";
 import { notFound } from "./middleware/notFound";
@@ -41,12 +42,12 @@ app.use(helmet());
 app.use(compression());
 
 // Rate limiting
-const limiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutes
-	max: 100, // limit each IP to 100 requests per windowMs
-	message: "Too many requests from this IP, please try again later.",
-});
-app.use("/api/", limiter);
+// const limiter = rateLimit({
+// 	windowMs: 15 * 60 * 1000, // 15 minutes
+// 	max: 100, // limit each IP to 100 requests per windowMs
+// 	message: "Too many requests from this IP, please try again later.",
+// });
+// app.use("/api/", limiter);
 
 // CORS configuration
 // app.use(
@@ -105,6 +106,8 @@ app.use("/api/lessons", lessonRoutes);
 app.use("/api/modules", moduleRoutes);
 app.use("/api/pricing", pricingRoutes)
 app.use("/api/parents", parentRoutes)
+app.use("/api/attendance", attendanceRoutes)
+app.use("/api/receipts", receiptRoute)
 // Error handling middleware
 app.use(notFound);
 app.use(errorHandler);
