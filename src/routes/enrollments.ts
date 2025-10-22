@@ -14,4 +14,12 @@ router.post("/", requireRegistrar, enrollmentController.createEnrollment);
 // GET /enrollments - Get registrations with filtering
 router.get("/", requireRegistrar, enrollmentController.getRegistrations);
 
+router.get("/stats", requireRegistrar, enrollmentController.getStats)
+
+// POST /enrollments/unenroll - Unenroll a student
+router.post("/unenroll", requireRegistrar, enrollmentController.unenrollStudent)
+
+// GET /enrollments/export - Export enrolled students data
+router.get("/export", requireRegistrar, enrollmentController.exportEnrolledStudents)
+
 export default router;

@@ -172,6 +172,7 @@ model Student {
   grade     Grade?      @relation(fields: [gradeId], references: [id])
 
   @@map("students")
+  AttendanceRecord AttendanceRecord[]
 }
 
 model Registration {
@@ -324,9 +325,10 @@ model Class {
   teachers    ClassTeacher[]
   enrollments Enrollment[]
 
-  @@unique([name, section, branchId, academicYearId])
+  @@unique([name, section, branchId, academicYearId, gradeId])
   @@map("classes")
   Lesson Lesson[]
+  AttendanceSession AttendanceSession[]
 }
 
 model ClassTeacher {
@@ -431,7 +433,7 @@ model Invoice {
   createdById    String
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-
+  fsNumber          String?           @unique
   student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   branch    Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
   createdBy User    @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
@@ -611,4 +613,48 @@ enum SMSStatus {
   FAILED
 }
 
+model AttendanceSession {
+  id        String   @id @default(cuid())
+  classId   String
+  date      DateTime
+  month     Int      // 1-12
+  year      Int
+  weekNumber Int     // 1-5 for the month
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  // Relations
+  class   Class              @relation(fields: [classId], references: [id], onDelete: Cascade)
+  records AttendanceRecord[]
+
+  @@unique([classId, date])
+  @@map("attendance_sessions")
+}
+
+model AttendanceRecord {
+  id        String           @id @default(cuid())
+  sessionId String
+  studentId String
+  status    AttendanceStatus @default(PRESENT)
+  notes     String?
+  markedAt  DateTime         @default(now())
+  markedBy  String?          // User ID who marked attendance
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @default(now())
+
+  // Relations
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, studentId])
+  @@map("attendance_records")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+  SICK
+}

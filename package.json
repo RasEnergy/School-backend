@@ -4,8 +4,8 @@
 	"main": "index.js",
 	"scripts": {
 		"dev": "tsx watch src/server.ts",
-		"build": "tsc",
-		"start": "node dist/server.js",
+		"build": "tsc && tsc-alias",
+		"start": "node -r tsconfig-paths/register dist/server.js",
 		"prisma:generate": "prisma generate",
 		"prisma:migrate": "prisma migrate dev",
 		"prisma:studio": "prisma studio",
@@ -23,7 +23,9 @@
 		"compression": "^1.8.1",
 		"cookie-parser": "^1.4.7",
 		"cors": "^2.8.5",
+		"date-fns": "^4.1.0",
 		"dotenv": "^17.2.1",
+		"exceljs": "^4.4.0",
 		"express": "^5.1.0",
 		"express-rate-limit": "^8.0.1",
 		"express-validator": "^7.0.1",
@@ -36,6 +38,7 @@
 		"xlsx": "^0.18.5",
 		"zod": "^4.1.1"
 	},
+	"seed": "node prisma/seed.js",
 	"devDependencies": {
 		"@types/bcrypt": "^6.0.0",
 		"@types/bcryptjs": "^2.4.6",
@@ -49,6 +52,7 @@
 		"@types/multer": "^1.4.11",
 		"@types/node": "^24.3.0",
 		"prisma": "^6.15.0",
+		"tsc-alias": "^1.8.16",
 		"tsx": "^4.20.5",
 		"typescript": "^5.9.2"
 	}
