@@ -34,7 +34,8 @@ const changePasswordValidation = [
 ];
 
 // Public routes
-router.post("/login", loginValidation, validate, login);
+// router.post("/login", loginValidation, validate, login);
+router.post("/login", login);
 router.post("/refresh", refreshToken);
 
 // Protected routes
