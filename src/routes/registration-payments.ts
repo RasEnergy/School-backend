@@ -15,4 +15,10 @@ router.get(
 	registrationController.getRegistrations
 );
 
+// GET /api/registrations/details?registrationId=xxxx
+router.get("/details", registrationController.getRegistrationDetails);
+
+// POST /api/registration/pay
+router.post("/pay", registrationController.processPayment);
+
 export default router;

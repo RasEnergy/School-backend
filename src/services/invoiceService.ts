@@ -1,4 +1,6 @@
 import { prisma } from "@/config/database";
+import { generatePrintableReceipt } from "@/utils/receipt.generator";
+import { hasPermission } from "@/utils/auth.js";
 import * as XLSX from "xlsx";
 
 interface InvoiceFilters {
@@ -486,5 +488,100 @@ export const invoiceService = {
 			parentPhone,
 			paymentLink: `${process.env.NEXT_PUBLIC_APP_URL}/payment/${invoiceId}`,
 		};
+	},
+
+	async generateInvoiceReceipt(invoiceId: any, user: any) {
+		if (
+			!hasPermission(user.role, [
+				"SUPER_ADMIN",
+				"BRANCH_ADMIN",
+				"REGISTRAR",
+				"CASHIER",
+			])
+		) {
+			throw new Error("Insufficient permissions");
+		}
+
+		const invoice = await prisma.invoice.findUnique({
+			where: { id: invoiceId },
+			include: {
+				student: {
+					include: {
+						user: true,
+						parents: {
+							include: {
+								parent: {
+									include: { user: true },
+								},
+							},
+						},
+						grade: { select: { name: true } },
+					},
+				},
+				branch: true,
+				payments: {
+					where: { status: "COMPLETED" },
+					orderBy: { createdAt: "desc" },
+					take: 1,
+					include: {
+						processedBy: {
+							select: { firstName: true, lastName: true },
+						},
+					},
+				},
+				registrations: { select: { registrationNumber: true } },
+				items: { include: { feeType: true } },
+			},
+		});
+
+		if (!invoice) return null;
+
+		// Restrict branch access
+		if (
+			["BRANCH_ADMIN", "REGISTRAR", "CASHIER"].includes(user.role) &&
+			invoice.branchId !== user.branchId
+		) {
+			throw new Error("Access denied");
+		}
+
+		const payment = invoice.payments[0];
+		if (!payment) return null;
+
+		// Prepare receipt data
+		const receiptNumber =
+			invoice.registrations?.[0]?.registrationNumber || payment.transactionId;
+
+		return generatePrintableReceipt({
+			schoolName: "Yeka Michael Schools",
+			invoiceNumber: invoice.invoiceNumber,
+			studentName: `${invoice.student.user.firstName} ${invoice.student.user.lastName}`,
+			studentId: invoice.student.studentId,
+			branchName: invoice.branch.name,
+			gradeName: invoice.student.grade?.name || "N/A",
+			parentName: invoice.student.parents[0]
+				? `${invoice.student.parents[0].parent.user.firstName} ${invoice.student.parents[0].parent.user.lastName}`
+				: "N/A",
+			parentPhone: invoice.student.parents[0]?.parent.user.phone || "N/A",
+			paymentMethod: payment.paymentMethod,
+			items: invoice.items.map((item) => ({
+				description: item.description,
+				feeType: item.feeType.name,
+				quantity: item.quantity,
+				amount: Number(item.amount),
+			})),
+			totalAmount: Number(invoice.totalAmount),
+			discountAmount: invoice.discountAmount
+				? Number(invoice.discountAmount)
+				: 0,
+			finalAmount: Number(
+				invoice.finalAmount || invoice.paidAmount || invoice.totalAmount
+			),
+			receiptNumber: receiptNumber,
+			transactionNumber: payment.transactionId,
+			paymentDate: payment.createdAt,
+			cashierName: payment.processedBy
+				? `${payment.processedBy.firstName} ${payment.processedBy.lastName}`
+				: "System",
+		} as any);
 	},
 };

@@ -43,4 +43,11 @@ router.post(
 	invoiceController.resendPaymentLink
 );
 
+// 🧾 Generate printable receipt
+router.get(
+	"/:id/receipt",
+	// authenticateUser,
+	invoiceController.getInvoiceReceipt
+);
+
 export default router;

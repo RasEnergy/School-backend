@@ -1,5 +1,6 @@
 import { prisma } from "@/config/database";
 import { canAccessBranch } from "@/utils/auth";
+import { smsService } from "@/utils/sms";
 
 export interface GetRegistrationFilters {
 	page?: number;
@@ -146,6 +147,288 @@ export class RegistrationService {
 				total,
 				pages: Math.ceil(total / limit),
 			},
+		};
+	}
+
+	async getRegistrationDetails(registrationId: any) {
+		const registration = await prisma.registration.findUnique({
+			where: { id: registrationId },
+			include: {
+				student: {
+					include: {
+						user: true,
+						parents: {
+							include: {
+								parent: {
+									include: {
+										user: true,
+									},
+								},
+							},
+						},
+					},
+				},
+				branch: true,
+				grade: true,
+				invoices: {
+					include: {
+						payments: true,
+					},
+					orderBy: { createdAt: "desc" },
+					take: 1,
+				},
+			},
+		});
+
+		return registration;
+	}
+
+	async handlePayment(data: any) {
+		const {
+			user,
+			registrationId,
+			paymentMethod,
+			discountPercentage = 0,
+			receiptNumber,
+			transactionNumber,
+			paidAmount,
+			notes,
+			paymentDate,
+		} = data;
+
+		if (!registrationId || !paymentMethod)
+			throw new Error("Registration ID and payment method are required");
+
+		// 🔍 Validate manual payments
+		if (["CASH", "BANK_TRANSFER"].includes(paymentMethod)) {
+			if (!receiptNumber && !transactionNumber)
+				throw new Error("Receipt or transaction number is required");
+			if (!paidAmount || paidAmount <= 0)
+				throw new Error("Paid amount is required for manual payments");
+		}
+
+		// 🔢 Validate discount range
+		if (discountPercentage < 0 || discountPercentage > 100)
+			throw new Error("Discount percentage must be between 0 and 100");
+
+		const registration = await prisma.registration.findUnique({
+			where: { id: registrationId },
+			include: {
+				student: {
+					include: {
+						user: true,
+						parents: {
+							include: {
+								parent: {
+									include: { user: true },
+								},
+							},
+						},
+					},
+				},
+				branch: true,
+				grade: true,
+				invoices: { include: { payments: true } },
+			},
+		});
+
+		if (!registration) throw new Error("Registration not found");
+
+		if (registration.status !== "PENDING_PAYMENT")
+			throw new Error("Registration payment already completed");
+
+		// 🚫 Branch access check
+		if (
+			["BRANCH_ADMIN", "REGISTRAR", "CASHIER"].includes(user.role) &&
+			registration.branchId !== user.branchId
+		)
+			throw new Error("Access denied");
+
+		// 💰 Amount calculations
+		const registrationFee = Number(registration.registrationFee) || 0;
+		const additionalFee = Number(registration.additionalFee) || 0;
+		const baseTotal = registrationFee + additionalFee;
+		const discountAmount = (baseTotal * discountPercentage) / 100;
+		const finalAmount = baseTotal - discountAmount;
+		const actualPaidAmount = ["CASH", "BANK_TRANSFER"].includes(paymentMethod)
+			? Number(paidAmount)
+			: finalAmount;
+
+		// 🧾 Transaction block
+		const result = await prisma.$transaction(async (tx) => {
+			const paymentCount = await tx.payment.count();
+			const invoiceCount = await tx.invoice.count();
+			const paymentNumber = `PAY-${Date.now()}-${(paymentCount + 1)
+				.toString()
+				.padStart(4, "0")}`;
+			const invoiceNumber = `INV-${Date.now()}-${(invoiceCount + 1)
+				.toString()
+				.padStart(4, "0")}`;
+
+			// Fee types
+			const feeTypes = await tx.feeType.findMany({
+				where: {
+					name: {
+						in: ["Registration Fee", "Monthly Fee", "Quarterly Fee"],
+					},
+				},
+			});
+			const regType = feeTypes.find((ft) => ft.name === "Registration Fee");
+			const monthType = feeTypes.find((ft) => ft.name === "Monthly Fee");
+			const quarterType = feeTypes.find((ft) => ft.name === "Quarterly Fee");
+
+			// Invoice creation
+			const invoice = await tx.invoice.create({
+				data: {
+					invoiceNumber,
+					studentId: registration.studentId,
+					branchId: registration.branchId,
+					registrationId: registration.id,
+					totalAmount: baseTotal,
+					discountAmount,
+					finalAmount,
+					paidAmount: actualPaidAmount,
+					status: ["CASH", "BANK_TRANSFER"].includes(paymentMethod)
+						? "PAID"
+						: "PENDING",
+					dueDate: registration.paymentDueDate,
+					createdById: user.id,
+				},
+			});
+
+			// Invoice items
+			const items = [];
+			if (regType && registrationFee > 0)
+				items.push({
+					invoiceId: invoice.id,
+					feeTypeId: regType.id,
+					description: "Registration Fee",
+					amount: registrationFee,
+					quantity: 1,
+				});
+
+			if (additionalFee > 0) {
+				let feeType = null;
+				let description = "Additional Fee";
+				if (
+					registration.paymentOption === "REGISTRATION_MONTHLY" &&
+					monthType
+				) {
+					feeType = monthType;
+					description = "Monthly Fee (1st & Last Month)";
+				} else if (
+					registration.paymentOption === "REGISTRATION_QUARTERLY" &&
+					quarterType
+				) {
+					feeType = quarterType;
+					description = "Quarterly Fee (2.5 Months)";
+				}
+				if (feeType)
+					items.push({
+						invoiceId: invoice.id,
+						feeTypeId: feeType.id,
+						description,
+						amount: additionalFee,
+						quantity: 1,
+					});
+			}
+
+			if (items.length > 0) await tx.invoiceItem.createMany({ data: items });
+
+			// Payment record
+			const payment = await tx.payment.create({
+				data: {
+					paymentNumber,
+					invoiceId: invoice.id,
+					studentId: registration.studentId,
+					registrationId: registration.id,
+					amount: actualPaidAmount,
+					transactionId: receiptNumber || transactionNumber || null,
+					notes: notes || null,
+					paymentDate: new Date(paymentDate),
+					processedById: user.id,
+					branchId: registration.branchId,
+					paymentMethod,
+					status: ["CASH", "BANK_TRANSFER"].includes(paymentMethod)
+						? "COMPLETED"
+						: "PENDING",
+				},
+			});
+
+			const updatedRegistration = await tx.registration.update({
+				where: { id: registrationId },
+				data: {
+					status: ["CASH", "BANK_TRANSFER"].includes(paymentMethod)
+						? "PAYMENT_COMPLETED"
+						: "PENDING_PAYMENT",
+					paidAmount: actualPaidAmount,
+					discountPercentage:
+						discountPercentage > 0 ? discountPercentage : null,
+					discountAmount: discountAmount > 0 ? discountAmount : null,
+					completedAt: ["CASH", "BANK_TRANSFER"].includes(paymentMethod)
+						? new Date()
+						: null,
+				},
+				include: {
+					student: {
+						include: {
+							user: true,
+							parents: {
+								include: {
+									parent: {
+										include: { user: true },
+									},
+								},
+							},
+						},
+					},
+					branch: true,
+					grade: true,
+				},
+			});
+
+			return { invoice, payment, registration: updatedRegistration };
+		});
+
+		// 📱 SMS Confirmation
+		const parentPhone =
+			result.registration.student.parents[0]?.parent.user.phone;
+		const studentName = `${result.registration.student.user.firstName} ${result.registration.student.user.lastName}`;
+
+		if (parentPhone) {
+			if (["CASH", "BANK_TRANSFER"].includes(paymentMethod)) {
+				await smsService.sendEnhancedRegistrationConfirmation(
+					parentPhone,
+					studentName,
+					result.registration.student.studentId,
+					result.registration.registrationNumber,
+					actualPaidAmount,
+					result.registration.grade?.name || "Not Assigned",
+					discountPercentage
+				);
+			} else {
+				const paymentLink = `${process.env.APP_URL}/payment/${result.invoice.id}`;
+				await smsService.sendPaymentLink(
+					parentPhone,
+					studentName,
+					result.registration.student.studentId,
+					Number(actualPaidAmount),
+					paymentLink,
+					result.invoice.invoiceNumber
+				);
+			}
+		}
+
+		return {
+			message: ["CASH", "BANK_TRANSFER"].includes(paymentMethod)
+				? "Payment completed successfully"
+				: "Registration payment processed successfully",
+			registration: result.registration,
+			invoice: result.invoice,
+			payment: result.payment,
+			redirectTo: ["CASH", "BANK_TRANSFER"].includes(paymentMethod)
+				? `/registration/success/${result.registration.id}`
+				: `/dashboard/invoices/${result.invoice.id}`,
 		};
 	}
 }

@@ -167,4 +167,23 @@ export const invoiceController = {
 			res.status(500).json({ error: "Internal server error" });
 		}
 	},
+
+	async getInvoiceReceipt(req: Request, res: Response) {
+		try {
+			const user = req.user;
+			const { id } = req.params;
+
+			const receiptHTML = await invoiceService.generateInvoiceReceipt(id, user);
+
+			if (!receiptHTML) {
+				return res.status(404).json({ error: "Invoice or payment not found" });
+			}
+
+			res.setHeader("Content-Type", "text/html");
+			return res.send(receiptHTML);
+		} catch (error) {
+			console.error("Receipt generation error:", error);
+			res.status(500).json({ error: "Internal server error" });
+		}
+	},
 };
