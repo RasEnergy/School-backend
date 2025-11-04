@@ -18,15 +18,16 @@ import enrollmentRoutes from "./routes/enrollments";
 import invoiceRoutes from "./routes/invoices";
 import paymentRoutes from "./routes/payments";
 import registrationRoutes from "./routes/registrations";
+import registrationPaymentRoutes from "./routes/registration-payments";
 
 import subjectRoutes from "./routes/subjects";
 import teacherRoutes from "./routes/teachers";
 import lessonRoutes from "./routes/lessons";
 import moduleRoutes from "./routes/modules";
-import pricingRoutes from "./routes/pricing"
-import parentRoutes from "./routes/parents"
-import attendanceRoutes from "./routes/attendance"
-import receiptRoute from "./routes/receipt"
+import pricingRoutes from "./routes/pricing";
+import parentRoutes from "./routes/parents";
+import attendanceRoutes from "./routes/attendance";
+import receiptRoute from "./routes/receipt";
 // Import middleware
 import { errorHandler } from "./middleware/errorHandler";
 import { notFound } from "./middleware/notFound";
@@ -60,15 +61,14 @@ app.use(compression());
 // );
 
 app.use(
-  cors({
-    // origin: "http://5.75.243.13:36443", // frontend URL
-    origin: "http://localhost:3000", // frontend URL
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization", "Accept"],
-  })
+	cors({
+		// origin: "http://5.75.243.13:36443", // frontend URL
+		origin: "http://localhost:3000", // frontend URL
+		credentials: true,
+		methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+		allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+	})
 );
-
 
 // app.options("*", cors());
 
@@ -100,14 +100,15 @@ app.use("/api/enrollments", enrollmentRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/registrations", registrationRoutes);
+app.use("/api/registration-payments", registrationPaymentRoutes);
 app.use("/api/subjects", subjectRoutes);
 app.use("/api/teachers", teacherRoutes);
 app.use("/api/lessons", lessonRoutes);
 app.use("/api/modules", moduleRoutes);
-app.use("/api/pricing", pricingRoutes)
-app.use("/api/parents", parentRoutes)
-app.use("/api/attendance", attendanceRoutes)
-app.use("/api/receipts", receiptRoute)
+app.use("/api/pricing", pricingRoutes);
+app.use("/api/parents", parentRoutes);
+app.use("/api/attendance", attendanceRoutes);
+app.use("/api/receipts", receiptRoute);
 // Error handling middleware
 app.use(notFound);
 app.use(errorHandler);

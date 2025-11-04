@@ -68,6 +68,37 @@ export async function getUserById(userId: string): Promise<AuthUser | null> {
 	}
 }
 
+export async function getUserFromRequest(
+	request: any
+): Promise<AuthUser | null> {
+	const token =
+		request.cookies.get("auth-token")?.value ||
+		request.headers.get("authorization")?.replace("Bearer ", "");
+
+	if (!token) return null;
+
+	const user = verifyToken(token);
+	if (!user) return null;
+
+	// Verify user still exists and is active
+	const dbUser = await prisma.user.findFirst({
+		where: { id: user.id, isActive: true },
+		include: { school: true, branch: true },
+	});
+
+	if (!dbUser) return null;
+
+	return {
+		id: dbUser.id,
+		email: dbUser.email,
+		firstName: dbUser.firstName,
+		lastName: dbUser.lastName,
+		role: dbUser.role,
+		schoolId: dbUser.schoolId,
+		branchId: dbUser.branchId || undefined,
+	};
+}
+
 export function hasPermission(
 	userRole: string,
 	requiredRoles: string[]

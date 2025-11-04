@@ -94,6 +94,40 @@ export const requireSchoolAccess = (
 	next();
 };
 
+export function requireRegistrarOrAdmin(
+	req: Request,
+	res: Response,
+	next: NextFunction
+) {
+	const user = req.user;
+	if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+	const allowedRoles = ["SUPER_ADMIN", "BRANCH_ADMIN", "REGISTRAR", "CASHIER"];
+	if (!allowedRoles.includes(user.role)) {
+		return res.status(403).json({ error: "Insufficient permissions" });
+	}
+
+	next();
+}
+
+export function requireFinanceAccess(
+	req: Request,
+	res: Response,
+	next: NextFunction
+) {
+	const user = req.user;
+	if (!user) {
+		return res.status(401).json({ error: "Unauthorized" });
+	}
+
+	const allowedRoles = ["SUPER_ADMIN", "BRANCH_ADMIN", "REGISTRAR", "CASHIER"];
+	if (!allowedRoles.includes(user.role)) {
+		return res.status(403).json({ error: "Insufficient permissions" });
+	}
+
+	next();
+}
+
 export const requireSuperAdmin = authorize(["SUPER_ADMIN"]);
 export const requireBranchAdmin = authorize(["SUPER_ADMIN", "BRANCH_ADMIN"]);
 export const requireRegistrar = authorize([
